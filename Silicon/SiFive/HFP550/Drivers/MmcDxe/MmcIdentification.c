@@ -665,7 +665,7 @@ MmcIdentificationMode (
     }
   }
 
-  Status = MmcEnumerte (MmcHostInstance, 50 * 1000 * 1000, MMC_BUS_WIDTH_4);
+  Status = MmcEnumerte (MmcHostInstance, 208 * 1000 * 1000, MMC_BUS_WIDTH_4);
 
   if (EFI_ERROR (Status)) {
       DEBUG ((DEBUG_ERROR, "MmcIdentificationMode() : Error MmcEnumerte, Status=%r.\n", Status));

@@ -28,7 +28,7 @@
   MdePkg/MdePkg.dec
   MdeModulePkg/MdeModulePkg.dec
   UefiCpuPkg/UefiCpuPkg.dec
-  Silicon/Sophgo/SG2042Pkg/SG2042Pkg.dec
+  Silicon/SiFive/HFP550/P550Pkg.dec
 
 [LibraryClasses]
   BaseLib
@@ -39,10 +39,10 @@
   UefiDriverEntryPoint
   UefiLib
   UefiRuntimeServicesTableLib
+  TimerLib
 
 [Protocols]
-  gSophgoMmcHostProtocolGuid        ## PRODUCES
+  gSifiveMmcHostProtocolGuid        ## PRODUCES
 
 [FixedPcd]
-  gSophgoSG2042PlatformPkgTokenSpaceGuid.PcdSG2042SDIOBase        ## CONSUMES
-  gUefiCpuPkgTokenSpaceGuid.PcdCpuRiscVMmuMaxSatpMode             ## CONSUMES
+  gSifiveHFP550PlatformPkgTokenSpaceGuid.PcdHFP550SDIOBase        ## CONSUMES

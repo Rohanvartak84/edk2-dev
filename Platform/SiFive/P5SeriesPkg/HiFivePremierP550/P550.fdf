@@ -1,5 +1,5 @@
 # @file
-#  Flash definition file on SiFive Freedom U540 HiFive Unleashed RISC-V platform
+#  Flash definition file on SiFive HiFive Premier P550 RISC-V platform
 #
 #  Copyright (c) 2019-2021, Hewlett Packard Enterprise Development LP. All rights reserved.<BR>
 #  Copyright (c) 2023, Intel Corporation. All rights reserved.<BR>
@@ -8,13 +8,13 @@
 #
 # Platform definitions
 #
-!include U540.fdf.inc
+!include P550.fdf.inc
 
 #
 # Build the variable store and the firmware code as one unified flash device
 # image.
 #
-[FD.U540]
+[FD.P550]
 BaseAddress   = $(FW_BASE_ADDRESS)|gUefiRiscVPlatformPkgTokenSpaceGuid.PcdRiscVFdBaseAddress64
 Size          = $(FW_SIZE)|gUefiRiscVPlatformPkgTokenSpaceGuid.PcdRiscVFirmwareFdSize
 ErasePolarity = 1
@@ -62,6 +62,10 @@ APRIORI DXE {
 
 INF MdeModulePkg/Universal/Disk/RamDiskDxe/RamDiskDxe.inf
 INF Platform/RISC-V/PlatformPkg/Drivers/FixedRamDiskDxe/FixedRamDiskDxe.inf
+
+# SD Card Driver 
+INF  Silicon/SiFive/HFP550/Drivers/MmcDxe/MmcDxe.inf
+INF  Silicon/SiFive/HFP550/Drivers/SdHostDxe/SdHostDxe.inf
 
 ################################################################################
 

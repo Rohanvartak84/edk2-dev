@@ -11,7 +11,7 @@
 #ifndef _SD_HCI_H_
 #define _SD_HCI_H_
 
-#define SDIO_BASE                       (FixedPcdGet64(PcdSG2042SDIOBase))
+#define SDIO_BASE                       (FixedPcdGet64(PcdHFP550SDIOBase))
 #define SDHCI_DMA_ADDRESS               0x00
 #define SDHCI_BLOCK_SIZE                0x04
 #define SDHCI_MAKE_BLKSZ(dma, blksz)    ((((dma) & 0x7) << 12) | ((blksz) & 0xFFF))

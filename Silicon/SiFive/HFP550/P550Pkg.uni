@@ -1,0 +1,13 @@
+// /** @file
+// Sifive HiFive Premier P550 Package Localized Strings and Content.
+//
+// Copyright (c) 2023, Academy of Intelligent Innovation, Shandong Universiy, China.P.R. All rights reserved.<BR>
+//
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+//
+// **/
+
+
+#string STR_PACKAGE_ABSTRACT            #language en-US "Provides Sifive RISC-V HFP550 platform modules and libraries"
+
+#string STR_PACKAGE_DESCRIPTION         #language en-US "This Package Sifive RISC-V HFP550 platform modules and libraries."

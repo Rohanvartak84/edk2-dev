@@ -17,6 +17,7 @@
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/BaseMemoryLib.h>
 #include <Include/MmcHost.h>
+#include <Library/TimerLib.h>
 
 #include "SdHci.h"
 
@@ -478,71 +479,6 @@ BmSdCardDetect (
 }
 
 /**
-  SD card hardware initialization.
-
-**/
-STATIC
-VOID
-SdHwInit (
-  VOID
-  )
-{
-  UINTN  Base;
-
-  Base                = BmParams.RegBase;
-  BmParams.VendorBase = Base + (MmioRead16 (Base + P_VENDOR_SPECIFIC_AREA) & ((1 << 12) - 1));
-
-  // deasset reset of phy
-  MmioWrite32 (Base + SDHCI_P_PHY_CNFG, MmioRead32 (Base + SDHCI_P_PHY_CNFG) | (1 << PHY_CNFG_PHY_RSTN));
-
-  // reset data & Cmd
-  MmioWrite8 (Base + SDHCI_SOFTWARE_RESET, 0x6);
-
-  // init common parameters
-  MmioWrite8 (Base + SDHCI_PWR_CONTROL, (0x7 << 1));
-  MmioWrite8 (Base + SDHCI_TOUT_CTRL, 0xe);  // for TMCLK 50Khz
-  MmioWrite16 (Base + SDHCI_HOST_CONTROL2,
-          MmioRead16 (Base + SDHCI_HOST_CONTROL2) | 1 << 11);  // set cmd23 support
-  MmioWrite16 (Base + SDHCI_CLK_CTRL, MmioRead16 (Base + SDHCI_CLK_CTRL) & ~(0x1 << 5));  // divided clock Mode
-
-  // set host version 4 parameters
-  MmioWrite16 (Base + SDHCI_HOST_CONTROL2,
-          MmioRead16 (Base + SDHCI_HOST_CONTROL2) | (1 << 12)); // set HOST_VER4_ENABLE
-  if (MmioRead32 (Base + SDHCI_CAPABILITIES1) & (0x1 << 27)) {
-    MmioWrite16 (Base + SDHCI_HOST_CONTROL2,
-            MmioRead16 (Base + SDHCI_HOST_CONTROL2) | 0x1 << 13); // set 64bit addressing
-  }
-
-  // if support asynchronous int
-  if (MmioRead32 (Base + SDHCI_CAPABILITIES1) & (0x1 << 29))
-    MmioWrite16 (Base + SDHCI_HOST_CONTROL2,
-            MmioRead16 (Base + SDHCI_HOST_CONTROL2) | (0x1 << 14)); // enable async int
-  // give some time to power down card
-  gBS->Stall (20000);
-
-  MmioWrite16 (Base + SDHCI_HOST_CONTROL2,
-          MmioRead16 (Base + SDHCI_HOST_CONTROL2) & ~(0x1 << 8)); // clr UHS2_IF_ENABLE
-  MmioWrite8 (Base + SDHCI_PWR_CONTROL,
-          MmioRead8 (Base + SDHCI_PWR_CONTROL) | 0x1); // set SD_BUS_PWR_VDD1
-  MmioWrite16 (Base + SDHCI_HOST_CONTROL2,
-          MmioRead16 (Base + SDHCI_HOST_CONTROL2) & ~0x7); // clr UHS_MODE_SEL
-  SdSetClk (SDCARD_INIT_FREQ);
-  gBS->Stall (50000);
-
-  MmioWrite16 (Base + SDHCI_CLK_CTRL,
-          MmioRead16 (Base + SDHCI_CLK_CTRL) | (0x1 << 2)); // supply SD clock
-  gBS->Stall (400); // wait for voltage ramp up time at least 74 cycle, 400us is 80 cycles for 200Khz
-
-  MmioWrite16 (Base + SDHCI_INT_STATUS, MmioRead16 (Base + SDHCI_INT_STATUS) | (0x1 << 6));
-
-  // we enable all interrupt Status here for testing
-  MmioWrite16 (Base + SDHCI_INT_STATUS_EN, MmioRead16 (Base + SDHCI_INT_STATUS_EN) | 0xFFFF);
-  MmioWrite16 (Base + SDHCI_ERR_INT_STATUS_EN, MmioRead16 (Base + SDHCI_ERR_INT_STATUS_EN) | 0xFFFF);
-
-  //verbose("SD init done\n");
-}
-
-/**
   Set the input/output settings for the SD card.
 
   @param[in] Clk     The clock frequency for the SD card.
@@ -658,6 +594,11 @@ BmSdPrepare (
   @retval  EFI_TIMEOUT             The command transmission or data transfer timed out.
 
 **/
+#define  SDHCI_INT_SPACE_AVAIL		BIT4
+#define  SDHCI_INT_DATA_AVAIL		BIT5
+#define  SDHCI_SPACE_AVAILABLE		BIT10
+#define  SDHCI_DATA_AVAILABLE		BIT11
+
 EFI_STATUS
 BmSdRead (
   IN INT32   Lba,
@@ -679,6 +620,11 @@ BmSdRead (
   BlockCnt  = 0;
   Status    = 0;
 
+  UINT32 Rdy, Mask;
+
+  Rdy = SDHCI_INT_SPACE_AVAIL | SDHCI_INT_DATA_AVAIL;
+  Mask = SDHCI_SPACE_AVAILABLE | SDHCI_DATA_AVAILABLE;
+
   if (BmParams.Flags & SD_USE_PIO) {
     BlockSize = MmioRead16 (Base + SDHCI_BLOCK_SIZE);
     BlockCnt  = Size / BlockSize;
@@ -686,9 +632,18 @@ BmSdRead (
 
     for (INT32 I = 0; I < BlockCnt; ) {
       Status = MmioRead16 (Base + SDHCI_INT_STATUS);
-      if ((Status & SDHCI_INT_BUF_RD_READY) &&
-          (MmioRead32 (Base + SDHCI_PSTATE) & SDHCI_BUF_RD_ENABLE)) {
-        MmioWrite16 (Base + SDHCI_INT_STATUS, SDHCI_INT_BUF_RD_READY);
+      if (Status & SDHCI_INT_ERROR) {
+        DEBUG ((DEBUG_ERROR, "%a: error: 0x%x 0x%x\n", __func__,  MmioRead16 (Base + SDHCI_INT_STATUS),
+                                MmioRead16 (Base + SDHCI_ERR_INT_STATUS)));
+        return EFI_DEVICE_ERROR;
+      }
+
+      if ((Status & Rdy)) {
+	  if(!(MmioRead32 (Base + SDHCI_PSTATE) & Mask)) {
+		  continue;
+	  }
+
+	MmioWrite16 (Base + SDHCI_INT_STATUS, Rdy); 
         for (INT32 j = 0; j < BlockSize; j++) {
           *(Data++) = MmioRead32 (Base + SDHCI_BUF_DATA_R);
         }
@@ -698,9 +653,10 @@ BmSdRead (
       } else {
         gBS->Stall (1);
         Timeout++;
+	MicroSecondDelay(10);
       }
 
-      if (Timeout >= 10000) {
+      if (Timeout >= 1000000) {
         DEBUG ((DEBUG_INFO, "%a: sdhci read data Timeout\n", __func__));
         goto Timeout;
       }
@@ -822,43 +778,96 @@ Timeout:
   return EFI_TIMEOUT;
 }
 
-/**
-  Initialize the SD PHY.
-
-  This function performs the initialization of the SD PHY hardware.
-
-**/
+#define  SDHCI_CLOCK_CARD_EN      	BIT2
+#define  SDHCI_CLOCK_INT_STABLE		BIT1
+#define  SDHCI_CLOCK_INT_EN		BIT0
 VOID
-SdPhyInit (
+DisableCardClk (
   VOID
   )
 {
-  UINTN Base;
-  INT32 RetryCount;
+  UINTN  Base = BmParams.RegBase;
+  UINT32 Clk;
 
-  Base       = BmParams.RegBase;
-  RetryCount = 100;
+  /* Reset SD Clock Enable */
+  Clk = MmioRead16 (Base + SDHCI_CLK_CTRL);
+  Clk &= ~SDHCI_CLOCK_CARD_EN;
+  MmioWrite16 (Base + SDHCI_CLK_CTRL, Clk);
+}
 
-  // reset hardware
-  MmioWrite8 (Base + SDHCI_SOFTWARE_RESET, 0x7);
-  while (MmioRead8 (Base + SDHCI_SOFTWARE_RESET)) {
-    if (RetryCount-- > 0)
-      gBS->Stall (10000);
-    else
+VOID
+EnableCardClk (
+  VOID
+  )
+{
+  UINTN  Base = BmParams.RegBase;
+  UINT32 Val, Count = 0;
+
+  Val = MmioRead16 (Base + SDHCI_CLK_CTRL);
+  Val |= SDHCI_CLOCK_INT_EN;
+  MmioWrite16 (Base + SDHCI_CLK_CTRL, Val);
+
+  while(1) {
+    Count++;
+    Val = MmioRead16 (Base + SDHCI_CLK_CTRL);
+    if (Val & SDHCI_CLOCK_INT_STABLE )
       break;
+    if ( Count > 15000 ) {
+      DEBUG((DEBUG_INFO, "%a::%d Internal clock never stabilised\n",__func__,__LINE__));
+      return;
+    }
+    MicroSecondDelay(10);
   }
 
-  // Wait for the PHY power on ready
-  RetryCount = 100;
-  while (!(MmioRead32 (Base + SDHCI_P_PHY_CNFG) & (1 << PHY_CNFG_PHY_PWRGOOD))) {
-    if (RetryCount-- > 0)
-      gBS->Stall (10000);
-    else
-      break;
-  }
+  Val |= SDHCI_CLOCK_CARD_EN;
+  MmioWrite16 (Base + SDHCI_CLK_CTRL, Val);
+  MicroSecondDelay (100);
+}
 
-  // Asset reset of phy
-  MmioAnd32 (Base + SDHCI_P_PHY_CNFG, ~(1 << PHY_CNFG_PHY_RSTN));
+
+#define  SDHCI_DIV_MASK			0xFF
+#define  SDHCI_DIVIDER_SHIFT		8
+#define  SDHCI_DIV_HI_MASK		0x300
+#define  SDHCI_DIV_MASK_LEN		8
+#define  SDHCI_DIVIDER_HI_SHIFT		6
+#define  SDHCI_CLOCK_PLL_EN		BIT3
+
+#define PHY_UPDATE_DELAY_CODE     BIT4
+#define PHY_CLK_MAX_DELAY_MASK    0x7F
+VOID
+SdConfPhyDelay (
+  VOID
+  )
+{
+#if 0
+  UINTN Base = BmParams.RegBase;
+  UINT32 Delay = 0x55; /* u-boot DTS have this node */
+
+  Delay &= PHY_CLK_MAX_DELAY_MASK;
+
+  /*phy clk delay line config*/
+  MmioWrite8 (Base + SDHCI_P_SDCLKDL_CNFG, PHY_UPDATE_DELAY_CODE);
+  MmioWrite8 (Base + SDHCI_P_SDCLKDL_DC,   Delay);
+  MmioWrite8 (Base + SDHCI_P_SDCLKDL_CNFG, 0x0);
+#endif
+}
+
+#define PHY_PAD_RXSEL_0         0x0
+#define PHY_PAD_RXSEL_1         0x1
+VOID
+SdConfPhy (
+  VOID
+  )
+{
+  UINTN Base = BmParams.RegBase;
+  UINT32 Drv, DriveImpedance = 0xee; /* convert drive impedance ohm = 33 ohm */
+
+  Drv = DriveImpedance << PHY_CNFG_PAD_SP;
+
+  DisableCardClk ();
+
+  /* reset phy,config phy's pad */
+  MmioWrite32 (Base + SDHCI_P_PHY_CNFG, Drv | (~(1 << PHY_CNFG_PHY_RSTN)));
 
   // Set PAD_SN PAD_SP
   MmioWrite32 (Base + SDHCI_P_PHY_CNFG,
@@ -897,6 +906,177 @@ SdPhyInit (
   // Set ATDL_CNFG, tuning Clk not use for init
   MmioWrite8 (Base + SDHCI_P_ATDL_CNFG, (2 << ATDL_CNFG_INPSEL_CNFG));
 
+  SdConfPhyDelay ();
+  
+  MmioWrite32 (Base + SDHCI_P_PHY_CNFG, Drv | (1 << PHY_CNFG_PHY_RSTN));
+
+  EnableCardClk ();
+
+}
+
+#define SDHCI_CTRL_TUNED_CLK		0x0080
+#define SW_TUNE_ENABLE			BIT4
+#define VENDOR_AT_CTRL_R		0x540
+#define VENDOR_AT_SATA_R		0x544
+VOID
+SdCardTuning (
+  VOID
+  )
+{
+  UINTN Base = BmParams.RegBase;
+  UINT32 Ctrl, Val;
+  //INT32 Ret = 0;
+
+  Ctrl = MmioRead16 (Base + SDHCI_HOST_CONTROL2);
+  Ctrl &= ~SDHCI_CTRL_TUNED_CLK;
+  MmioWrite16 (Base + SDHCI_HOST_CONTROL2, Ctrl);
+
+  Val = MmioRead16 (Base + VENDOR_AT_CTRL_R);
+  Val |= SW_TUNE_ENABLE;
+  MmioWrite16 (Base + VENDOR_AT_CTRL_R, Val);
+  MmioWrite16 (Base + VENDOR_AT_SATA_R, 0x0);
+
+  MmioWrite16 (Base + SDHCI_CMD_DATA, 0x0);
+
+  //ret = eswin_sdhci_phase_code_tuning(host, opcode);
+
+}
+#define HSP_IO_MEM     0x50440000;
+VOID
+SdPhyPowerOn (
+  VOID
+  )
+{
+  UINTN Base = BmParams.RegBase;
+  UINTN HspBase = HSP_IO_MEM;
+  INT32 RetryCount = 100;
+  INT32 Ret = 0;
+
+  /*CONFIGURE IN HSPTOP, VOLTAGE*/
+  MmioWrite32 (HspBase + 0x608, 0x10010101);
+  MmioWrite32 (HspBase + 0x60C, 0x1       );
+  MmioWrite32 (HspBase + 0xB08, 0x2000000 );
+
+  /* reset sd */
+  MmioWrite8 (Base + SDHCI_SOFTWARE_RESET, 0x7);
+  
+  MmioWrite16 (Base + 0x508, 0x2);
+
+  /* SDHCI_PWR_CONTROL */
+  MmioWrite8 (Base + SDHCI_PWR_CONTROL, 0xF);
+
+  /* SDHCI_HOST_CONTROL2 */
+  MmioWrite16 (Base + SDHCI_HOST_CONTROL2, 0x0);
+
+  MmioWrite16 (Base + 0x52C, 0xC);
+
+  MmioWrite8 (Base + 0x31C, 0x0);
+  MmioWrite8 (Base + 0x52D, 0x0);
+  MmioWrite8 (Base + 0x320, 0x8);
+  MmioWrite8 (Base + 0x321, 0x8);
+
+  // Wait for the PHY power on ready
+  while(RetryCount--) {
+	Ret = MmioRead32 (Base + SDHCI_P_PHY_CNFG);
+	if ( Ret == (1 << PHY_CNFG_PHY_PWRGOOD) ) {
+	    DEBUG ((DEBUG_INFO, "%a: PHY power on ready\n", __func__));
+	    break;
+	}
+	else
+	    gBS->Stall (10000);
+  }
+}
+
+#define  SDHCI_POWER_330		0x0E
+#define  SDHCI_POWER_ON			0x01
+STATIC
+VOID
+SdHwInit (
+  VOID
+  )
+{
+  UINTN Base = BmParams.RegBase;
+
+  /* reset data & Cmd */
+  MmioWrite8 (Base + SDHCI_SOFTWARE_RESET, 0x6);
+
+  /* init common parameters */
+
+  /* sdhci_set_power */	
+  MmioWrite8 (Base + SDHCI_PWR_CONTROL, SDHCI_POWER_330 | SDHCI_POWER_ON);
+  MmioWrite8 (Base + SDHCI_TOUT_CTRL, 0xe);  // for TMCLK 50Khz
+  MmioWrite16 (Base + SDHCI_HOST_CONTROL2,
+          MmioRead16 (Base + SDHCI_HOST_CONTROL2) | 1 << 11);  // set cmd23 support
+  
+  MmioWrite16 (Base + SDHCI_CLK_CTRL, MmioRead16 (Base + SDHCI_CLK_CTRL) & ~(0x1 << 5));  // divided clock Mode
+
+  /* set host version 4 parameters */
+  MmioWrite16 (Base + SDHCI_HOST_CONTROL2,
+          MmioRead16 (Base + SDHCI_HOST_CONTROL2) | (1 << 12)); // set HOST_VER4_ENABLE
+  if (MmioRead32 (Base + SDHCI_CAPABILITIES1) & (0x1 << 27)) {
+    MmioWrite16 (Base + SDHCI_HOST_CONTROL2,
+            MmioRead16 (Base + SDHCI_HOST_CONTROL2) | 0x1 << 13); // set 64bit addressing
+  }
+
+  /* if support asynchronous int */
+  if (MmioRead32 (Base + SDHCI_CAPABILITIES1) & (0x1 << 29))
+    MmioWrite16 (Base + SDHCI_HOST_CONTROL2,
+            MmioRead16 (Base + SDHCI_HOST_CONTROL2) | (0x1 << 14)); // enable async int
+
+  /* give some time to power down card */
+  gBS->Stall (20000);
+
+  MmioWrite16 (Base + SDHCI_HOST_CONTROL2,
+          MmioRead16 (Base + SDHCI_HOST_CONTROL2) & ~(0x1 << 8)); // clr UHS2_IF_ENABLE
+  MmioWrite8 (Base + SDHCI_PWR_CONTROL,
+          MmioRead8 (Base + SDHCI_PWR_CONTROL) | 0x1); // set SD_BUS_PWR_VDD1
+  MmioWrite16 (Base + SDHCI_HOST_CONTROL2,
+          MmioRead16 (Base + SDHCI_HOST_CONTROL2) & ~0x7); // clr UHS_MODE_SEL
+
+  SdCardTuning ();
+
+  SdSetClk (400 * 1000);
+  gBS->Stall (50000);
+
+  EnableCardClk ();
+  gBS->Stall (400); // wait for voltage ramp up time at least 74 cycle, 400us is 80 cycles for 200Khz
+
+  MmioWrite16 (Base + SDHCI_INT_STATUS, MmioRead16 (Base + SDHCI_INT_STATUS) | (0x1 << 6));
+
+  /* we enable all interrupt Status here for testing */
+  MmioWrite16 (Base + SDHCI_INT_STATUS_EN, MmioRead16 (Base + SDHCI_INT_STATUS_EN) | 0xFFFF);
+  MmioWrite16 (Base + SDHCI_ERR_INT_STATUS_EN, MmioRead16 (Base + SDHCI_ERR_INT_STATUS_EN) | 0xFFFF);
+
+}
+
+/**
+  Initialize the SD PHY.
+
+  This function performs the initialization of the SD PHY hardware.
+
+**/
+
+#define ESWIN_HSPDMA_RST_CTRL   0x5182841c
+#define ESWIN_HSPDMA_SD_RST     ((0x7 << 3) | (0x7 << 6) | (1 << 17) | (1 << 18) | (1 << 21) | (1 << 22))
+
+VOID
+SdPhyInit (
+  VOID
+  )
+{
+  UINT32 *Addr;
+  UINT32 RegVal;
+  
+  /* sw rst */
+  Addr = (UINT32 *)ESWIN_HSPDMA_RST_CTRL;
+  RegVal = *Addr;
+  RegVal |= ESWIN_HSPDMA_SD_RST;
+  *Addr = RegVal;
+  
+  SdPhyPowerOn ();
+
+  SdConfPhy ();
+
   return;
 }
 
@@ -915,9 +1095,7 @@ SdInit (
   IN UINT32 Flags
 )
 {
-  BmParams.ClkRate = BmGetSdClk ();
-
-  DEBUG ((DEBUG_INFO, "SD initializing %dHz\n", BmParams.ClkRate));
+  DEBUG ((DEBUG_INFO, "%a: SD Card Initializing\n",__func__ ));
 
   BmParams.Flags = Flags;
 

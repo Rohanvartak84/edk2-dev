@@ -27,7 +27,7 @@
 
 [Packages]
   MdePkg/MdePkg.dec
-  Silicon/Sophgo/SG2042Pkg/SG2042Pkg.dec
+  Silicon/SiFive/HFP550/P550Pkg.dec
 
 [LibraryClasses]
   BaseLib
@@ -40,7 +40,7 @@
   gEfiBlockIoProtocolGuid                       ## PRODUCES
   gEfiDevicePathProtocolGuid                    ## PRODUCES
   gEfiDriverDiagnostics2ProtocolGuid            ## SOMETIMES_PRODUCES
-  gSophgoMmcHostProtocolGuid                    ## CONSUMES
+  gSifiveMmcHostProtocolGuid                    ## CONSUMES
 
 [Depex]
   TRUE

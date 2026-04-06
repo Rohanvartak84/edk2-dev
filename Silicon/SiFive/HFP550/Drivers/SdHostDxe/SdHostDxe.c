@@ -397,6 +397,81 @@ EFI_MMC_HOST_PROTOCOL gMmcHost = {
   SdIsMultiBlock
 };
 
+#define	EIC7X_CLK_BASE_ADDRESS			0x51828000
+#define	EIC7X_REG_OFFSET_HSP_ACLK_CTRL		0X148
+#define	EIC7X_REG_OFFSET_HSP_CFG_CTRL		0X14C
+#define	EIC7X_REG_OFFSET_MSHC1_CORECLK_CTRL	0X164
+
+#define	EIC7X_RST_BASE_ADDRESS			0x51828400
+#define	HSPDMA_RST_CTRL				0X1C
+#define	SW_MSHC1_PHY_RSTN			BIT4
+#define	SW_MSHC1_TXRX_RSTN			BIT7
+#define	SW_HSP_SD0_PRSTN			BIT18
+#define	SW_HSP_SD0_ARSTN			BIT22
+
+STATIC
+VOID
+DeAssert (
+  UINTN Base,
+  UINT32 Id
+  )
+{
+  UINT32 val;
+  val = MmioRead32 ( Base + HSPDMA_RST_CTRL);
+  val |= Id;
+  MmioWrite32(Base + HSPDMA_RST_CTRL, val);
+}
+
+STATIC
+VOID
+Assert (
+  UINTN Base,
+  UINT32 Id
+  )
+{
+  UINT32 val;
+  val = MmioRead32 ( Base + HSPDMA_RST_CTRL);
+  val &= ~Id;
+  MmioWrite32(Base + HSPDMA_RST_CTRL, val);
+}
+
+STATIC
+VOID
+SdResetInit (
+   VOID
+)
+{
+  Assert ( EIC7X_RST_BASE_ADDRESS, SW_MSHC1_TXRX_RSTN );
+  Assert ( EIC7X_RST_BASE_ADDRESS, SW_MSHC1_PHY_RSTN  );
+  Assert ( EIC7X_RST_BASE_ADDRESS, SW_HSP_SD0_PRSTN   );
+  Assert ( EIC7X_RST_BASE_ADDRESS, SW_HSP_SD0_ARSTN   );
+
+  DeAssert ( EIC7X_RST_BASE_ADDRESS, SW_MSHC1_TXRX_RSTN );
+  DeAssert ( EIC7X_RST_BASE_ADDRESS, SW_MSHC1_PHY_RSTN  );
+  DeAssert ( EIC7X_RST_BASE_ADDRESS, SW_HSP_SD0_PRSTN   );
+  DeAssert ( EIC7X_RST_BASE_ADDRESS, SW_HSP_SD0_ARSTN   );
+
+}
+
+STATIC
+VOID
+SdClkInit (
+   VOID
+)
+{
+  UINTN  Base = EIC7X_CLK_BASE_ADDRESS;
+
+  /* aclk */
+  MmioWrite32(Base + EIC7X_REG_OFFSET_HSP_ACLK_CTRL, MmioRead32 (Base + EIC7X_REG_OFFSET_HSP_ACLK_CTRL) | (0x1 << 31));
+
+  /* clk_ahb */
+  MmioWrite32(Base + EIC7X_REG_OFFSET_HSP_CFG_CTRL, MmioRead32 (Base + EIC7X_REG_OFFSET_HSP_CFG_CTRL) | (0x1 << 31));
+  MmioWrite32(Base + EIC7X_REG_OFFSET_HSP_CFG_CTRL, MmioRead32 (Base + EIC7X_REG_OFFSET_HSP_CFG_CTRL) | (0x1 << 30));
+
+  /* clk_xin */
+  MmioWrite32(Base + EIC7X_REG_OFFSET_MSHC1_CORECLK_CTRL, MmioRead32 (Base + EIC7X_REG_OFFSET_MSHC1_CORECLK_CTRL) | (0x1 << 16));
+}
+
 /**
   Initialize the SD host.
 
@@ -421,25 +496,18 @@ SdHostInitialize (
   Handle            = NULL;
   Base              = SDIO_BASE;
 
-  if(PcdGet32 (PcdCpuRiscVMmuMaxSatpMode) > 0UL){
-    for (INT32 I = 39; I < 64; I++) {
-      if (Base & (1ULL << 38)) {
-        Base |= (1ULL << I);
-      } else {
-        Base &= ~(1ULL << I);
-      }
-    }
-  }
-
   BmParams.RegBase  = Base;
-  BmParams.ClkRate  = 50 * 1000 * 1000;
+  BmParams.ClkRate  = 208 * 1000 * 1000;
   BmParams.BusWidth = MMC_BUS_WIDTH_4;
   BmParams.Flags    = 0;
   BmParams.CardIn   = SDCARD_STATUS_UNKNOWN;
 
+  SdClkInit();
+  SdResetInit();
+
   Status = gBS->InstallMultipleProtocolInterfaces (
     &Handle,
-    &gSophgoMmcHostProtocolGuid,
+    &gSifiveMmcHostProtocolGuid,
     &gMmcHost,
     NULL
   );

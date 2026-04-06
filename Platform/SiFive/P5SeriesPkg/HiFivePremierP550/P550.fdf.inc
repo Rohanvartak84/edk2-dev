@@ -36,3 +36,5 @@ DEFINE VARS_FTW_SPARE_SIZE           = 0x00040000
 SET gUefiCpuPkgTokenSpaceGuid.PcdPeiTemporaryRamStackSize = 0x10000
 SET gUefiRiscVPlatformPkgTokenSpaceGuid.PcdTemporaryRamBase64 = 0x84FF0000
 SET gUefiRiscVPlatformPkgTokenSpaceGuid.PcdTemporaryRamSize = 0x02000000
+
+SET gSifiveHFP550PlatformPkgTokenSpaceGuid.PcdHFP550SDIOBase = 0x50460000

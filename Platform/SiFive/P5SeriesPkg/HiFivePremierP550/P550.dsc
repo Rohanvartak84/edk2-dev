@@ -1,5 +1,5 @@
 ## @file
-#  RISC-V EFI on SiFive Freedom U540 HiFive Unleashed RISC-V platform
+#  RISC-V EFI on SiFive HiFive Premier P550 RISC-V platform
 #
 #  Copyright (c) 2019-2021, Hewlett Packard Enterprise Development LP. All rights reserved.<BR>
 #  Copyright (c) 2023, Intel Corporation. All rights reserved.<BR>
@@ -14,7 +14,7 @@
 #
 ################################################################################
 [Defines]
-  PLATFORM_NAME                  = FreedomU540HiFiveUnleashed
+  PLATFORM_NAME                  = P550
   PLATFORM_GUID                  = 8317E90F-428B-403F-9057-112B0C19008E
   PLATFORM_VERSION               = 0.1
   DSC_SPECIFICATION              = 0x0001001c
@@ -22,7 +22,7 @@
   SUPPORTED_ARCHITECTURES        = RISCV64
   BUILD_TARGETS                  = DEBUG|RELEASE|NOOPT
   SKUID_IDENTIFIER               = DEFAULT
-  FLASH_DEFINITION               = Platform/SiFive/U5SeriesPkg/FreedomU540HiFiveUnleashedBoard/U540.fdf
+  FLASH_DEFINITION               = Platform/SiFive/P5SeriesPkg/HiFivePremierP550/P550.fdf
 
   #
   # Option to enable PEI booting.
@@ -168,6 +168,7 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdDxeIplSupportUefiDecompress|FALSE
   gEfiMdeModulePkgTokenSpaceGuid.PcdConOutGopSupport|TRUE
 
+
 [PcdsFixedAtBuild]
   gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareVersionString|L"EDK2-DEV"
   gEfiMdeModulePkgTokenSpaceGuid.PcdStatusCodeUseMemory|FALSE
@@ -240,3 +241,7 @@
 [Components]
   MdeModulePkg/Universal/Disk/RamDiskDxe/RamDiskDxe.inf
   Platform/RISC-V/PlatformPkg/Drivers/FixedRamDiskDxe/FixedRamDiskDxe.inf
+
+  # SD Card Driver
+  Silicon/SiFive/HFP550/Drivers/MmcDxe/MmcDxe.inf
+  Silicon/SiFive/HFP550/Drivers/SdHostDxe/SdHostDxe.inf
