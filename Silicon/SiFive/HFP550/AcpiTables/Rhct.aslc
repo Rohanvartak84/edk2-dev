@@ -1,0 +1,142 @@
+/** @file
+  RISC-V Hart Capabilities Table (RHCT)
+
+  A new ACPI table named as RISC-V Hart Capabilities Table (RHCT).
+  This table is required to communicate certain capabilities of
+  RISC-V Hart (hardware thread) to the Operating System.
+
+  Copyright (c) 2024, SOPHGO Inc. All rights reserved.
+  Copyright (c) 2020 - 2022, Arm Limited. All rights reserved.
+
+  SPDX-License-Identifier: BSD-2-Clause-Patent
+
+  @par Specification Reference:
+    - ACPI 6.5, Chapter 5, Section 5.2.12, Multiple APIC Description Table
+**/
+
+#include <Library/AcpiLib.h>
+#include <Library/PcdLib.h>
+#include "SG2044AcpiHeader.h"
+
+// Multiple APIC Description Table
+#pragma pack (1)
+
+typedef struct {
+  EFI_ACPI_6_6_RISCV_HART_CAPABILITIES_TABLE_HEADER    Header;
+  EFI_ACPI_6_6_ISA_STRING_NODE_STRUCTURE               ISAStrNode;
+  EFI_ACPI_6_6_CMO_NODE_STRUCTURE                      CMONode;
+  EFI_ACPI_6_6_MMU_NODE_STRUCTURE                      MMUNode;
+  EFI_ACPI_6_6_HART_INFO_NODE_STRUCTURE                HartInfoNode[64];
+} EFI_ACPI_6_6_RISCV_HART_CAPABILITIES_TABLE;
+
+#pragma pack ()
+
+STATIC EFI_ACPI_6_6_RISCV_HART_CAPABILITIES_TABLE Rhct = {
+  {
+    RISCV_ACPI_HEADER (
+      EFI_ACPI_6_6_RISCV_HART_CAPABILITIES_TABLE_SIGNATURE,
+      EFI_ACPI_6_6_RISCV_HART_CAPABILITIES_TABLE,
+      EFI_ACPI_6_6_RISCV_HART_CAPABILITIES_TABLE_REVISION
+    ),
+    // RHCT specific fields
+    0,                      // Flags
+    50000000,               // Time Base Frequency
+    67,                     // Number of RHCT nodes
+    RHCT_NODE_ARRAY_OFFSET  // Offset to the RHCT node array
+  },
+  {
+    0,
+    OFFSET_OF (EFI_ACPI_6_6_RISCV_HART_CAPABILITIES_TABLE, CMONode) - OFFSET_OF (EFI_ACPI_6_6_RISCV_HART_CAPABILITIES_TABLE, ISAStrNode),                     // 8 + N + P: Size of this structure.
+    1,
+    MAX_ISA_LENGTH,
+    "rv64imafdcv_zicbom_zicboz_zicntr_zicond_zicsr_zifencei_zihintntl_zihintpause_zihpm_zawrs_zfa_zfh_zfhmin_zca_zcb_zcd_zba_zbb_zbc_zbs_zve32f_zve32x_zve64d_zve64f_zve64x_zvfh_zvfhmin_sscofpmf_sstc_svinval_svnapot_svpbmt"
+  },
+  {
+    1,
+    10,
+    1,
+    0,
+    6,
+    6,
+    6
+  },
+  {
+    2,
+    8,
+    1,
+    0,
+    1
+  },
+  {
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (0),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (1),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (2),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (3),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (4),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (5),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (6),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (7),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (8),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (9),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (10),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (11),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (12),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (13),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (14),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (15),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (16),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (17),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (18),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (19),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (20),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (21),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (22),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (23),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (24),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (25),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (26),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (27),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (28),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (29),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (30),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (31),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (32),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (33),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (34),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (35),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (36),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (37),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (38),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (39),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (40),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (41),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (42),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (43),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (44),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (45),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (46),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (47),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (48),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (49),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (50),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (51),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (52),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (53),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (54),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (55),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (56),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (57),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (58),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (59),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (60),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (61),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (62),
+    EFI_ACPI_6_6_HART_INFO_NODE_INIT (63)
+  }
+};
+
+//
+// Reference the table being generated to prevent the optimizer from removing
+// the data structure from the executable
+//
+VOID* CONST ReferenceAcpiTable = &Rhct;

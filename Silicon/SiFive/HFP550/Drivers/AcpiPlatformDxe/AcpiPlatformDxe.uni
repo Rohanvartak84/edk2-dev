@@ -1,0 +1,15 @@
+// /** @file
+// ACPI Platform Driver
+//
+// Copyright (c) 2008 - 2014, Intel Corporation. All rights reserved.<BR>
+// Copyright (c) 2024, Sophgo Technologies Ltd. All rights reserved.<BR>
+//
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+//
+// **/
+
+
+#string STR_MODULE_ABSTRACT             #language en-US "ACPI Platform Driver"
+
+#string STR_MODULE_DESCRIPTION          #language en-US "ACPI Platform Driver"
+

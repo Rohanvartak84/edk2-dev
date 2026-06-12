@@ -1,0 +1,37 @@
+## @file
+#  ACPI table data and ASL sources required to boot the platform.
+#  
+#  Copyright (c) 2024, SOPHGO Inc. All rights reserved.
+#  Copyright (c) 2020 - 2022, Arm Limited. All rights reserved.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x0001001A
+  BASE_NAME                      = SG2044EvbAcpiTables
+  FILE_GUID                      = 7E374E25-8E01-4FEE-87F2-390C23C606CD
+  MODULE_TYPE                    = USER_DEFINED
+  VERSION_STRING                 = 1.0
+
+[Sources]
+  Fadt.aslc
+  Spcr.aslc
+  Mcfg.aslc
+  Madt.aslc
+  Rhct.aslc
+  Pptt.aslc
+  Dsdt/SG2044Dsdt.asl
+  Ssdt.asl
+
+[Packages]
+  EmbeddedPkg/EmbeddedPkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  MdePkg/MdePkg.dec
+  Silicon/Sophgo/SG2044Pkg/SG2044Pkg.dec
+
+[FixedPcd]
+  gEfiMdeModulePkgTokenSpaceGuid.PcdSerialRegisterBase
+  gEfiMdeModulePkgTokenSpaceGuid.PcdSerialClockRate
+  gEfiMdeModulePkgTokenSpaceGuid.PcdSerialBaudRate

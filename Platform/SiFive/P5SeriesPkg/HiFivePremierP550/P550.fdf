@@ -63,7 +63,14 @@ APRIORI DXE {
 INF MdeModulePkg/Universal/Disk/RamDiskDxe/RamDiskDxe.inf
 INF Platform/RISC-V/PlatformPkg/Drivers/FixedRamDiskDxe/FixedRamDiskDxe.inf
 
-# SD Card Driver 
+!if $(ACPI_ENABLE) == TRUE
+INF  MdeModulePkg/Universal/Acpi/AcpiTableDxe/AcpiTableDxe.inf
+INF  MdeModulePkg/Universal/Acpi/AcpiPlatformDxe/AcpiPlatformDxe.inf
+INF  MdeModulePkg/Universal/Acpi/BootGraphicsResourceTableDxe/BootGraphicsResourceTableDxe.inf
+INF  RuleOverride = ACPITABLE Platform/SiFive/P5SeriesPkg/HiFivePremierP550/AcpiTables/AcpiTables.inf
+!endif
+
+# SD Card Driver
 INF  Silicon/SiFive/HFP550/Drivers/MmcDxe/MmcDxe.inf
 INF  Silicon/SiFive/HFP550/Drivers/SdHostDxe/SdHostDxe.inf
 

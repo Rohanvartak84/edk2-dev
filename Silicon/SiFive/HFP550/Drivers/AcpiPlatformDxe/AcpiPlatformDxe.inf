@@ -1,0 +1,81 @@
+## @file
+#  Sample ACPI Platform Driver
+#
+#  Copyright (c) 2008 - 2014, Intel Corporation. All rights reserved.<BR>
+#  Copyright (c) 2024, Sophgo Technologies Ltd. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = AcpiPlatformDxe
+  MODULE_UNI_FILE                = AcpiPlatformDxe.uni
+  FILE_GUID                      = CB933912-DF8F-4305-B1F9-7B44FA11395C
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = AcpiPlatformDxeEntryPoint
+
+[Sources]
+  AcpiPlatformDxe.c
+
+[Packages]
+  EmbeddedPkg/EmbeddedPkg.dec
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  Silicon/Sophgo/SG2044Pkg/SG2044Pkg.dec
+  Silicon/Sophgo/Sophgo.dec
+
+[LibraryClasses]
+  DxeServicesLib
+  BaseMemoryLib
+  PcdLib
+  DebugLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+  IniParserLib
+  AcpiLib
+  SmbiosInformationLib
+
+[Guids]
+  gEfiSophgoGlobalVariableGuid                              ## CONSUMES ## GUID
+
+[Protocols]
+  gEfiAcpiTableProtocolGuid                                 ## CONSUMES
+  gEfiAcpiSdtProtocolGuid                                   ## CONSUMES
+
+[Pcd]
+  gEfiMdeModulePkgTokenSpaceGuid.PcdAcpiTableStorageFile    ## CONSUMES
+  gSophgoSG2044PlatformPkgTokenSpaceGuid.PcdCppcMinFrequency
+  gSophgoSG2044PlatformPkgTokenSpaceGuid.PcdCppcMaxFrequency
+  gSophgoSG2044PlatformPkgTokenSpaceGuid.PcdCppcStep
+  gSophgoSG2044PlatformPkgTokenSpaceGuid.PcdClusterNum
+  gSophgoSG2044PlatformPkgTokenSpaceGuid.PcdCpuNumPerCluster
+  gSophgoSG2044PlatformPkgTokenSpaceGuid.PcdPcieHostBridgeTable
+
+   gSophgoSG2044PlatformPkgTokenSpaceGuid.PcdDdrType
+  gSophgoSG2044PlatformPkgTokenSpaceGuid.PcdDdrRate
+  gSophgoSG2044PlatformPkgTokenSpaceGuid.PcdDdrRank
+
+  gSophgoSG2044PlatformPkgTokenSpaceGuid.PcdProcessorVersion
+  gSophgoSG2044PlatformPkgTokenSpaceGuid.PcdCpuFrequencyHz
+  gSophgoSG2044PlatformPkgTokenSpaceGuid.PcdCpuL1ICacheSizeBytes
+  gSophgoSG2044PlatformPkgTokenSpaceGuid.PcdCpuL1DCacheSizeBytes
+  gSophgoSG2044PlatformPkgTokenSpaceGuid.PcdCpuL2CacheSizeBytes
+  gSophgoSG2044PlatformPkgTokenSpaceGuid.PcdCpuL3CacheSizeBytes
+
+  gSophgoSG2044PlatformPkgTokenSpaceGuid.PcdBoardName
+  gSophgoSG2044PlatformPkgTokenSpaceGuid.PcdBoardVersion
+
+  gSophgoSG2044PlatformPkgTokenSpaceGuid.PcdProductName
+  gSophgoSG2044PlatformPkgTokenSpaceGuid.PcdProductVersion
+  gSophgoSG2044PlatformPkgTokenSpaceGuid.PcdProductManufacturer
+  gSophgoSG2044PlatformPkgTokenSpaceGuid.PcdProductSN
+  gSophgoSG2044PlatformPkgTokenSpaceGuid.PcdProductUUID
+
+[Depex]
+  gEfiAcpiTableProtocolGuid
+
+[UserExtensions.TianoCore."ExtraFiles"]
+  AcpiPlatformExtra.uni

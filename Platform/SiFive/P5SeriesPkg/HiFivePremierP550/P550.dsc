@@ -37,6 +37,7 @@
   #
   DEFINE SECURE_BOOT_ENABLE      = FALSE
   DEFINE DEBUG_ON_SERIAL_PORT    = TRUE
+  DEFINE ACPI_ENABLE             = FALSE
 
   #
   # Network definition
@@ -159,6 +160,11 @@
 
 !include Silicon/RISC-V/RiscV.dsc.inc
 
+!if $(ACPI_ENABLE) == TRUE
+[LibraryClasses]
+  BmpSupportLib|MdeModulePkg/Library/BaseBmpSupportLib/BaseBmpSupportLib.inf
+!endif
+
 ################################################################################
 #
 # Pcd Section - list of all EDK II PCD Entries defined by this Platform.
@@ -167,7 +173,9 @@
 [PcdsFeatureFlag]
   gEfiMdeModulePkgTokenSpaceGuid.PcdDxeIplSupportUefiDecompress|FALSE
   gEfiMdeModulePkgTokenSpaceGuid.PcdConOutGopSupport|TRUE
-
+!if $(ACPI_ENABLE) == TRUE
+  gEfiMdeModulePkgTokenSpaceGuid.PcdInstallAcpiSdtProtocol|TRUE
+!endif
 
 [PcdsFixedAtBuild]
   gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareVersionString|L"EDK2-DEV"
@@ -204,6 +212,15 @@
 !if $(RISCV_PEI_BOOTING) == TRUE
   gUefiRiscVPlatformPkgTokenSpaceGuid.PcdRiscVPeiBootEnable|TRUE
 !endif
+
+  #
+  # ACPI
+  #
+!if $(ACPI_ENABLE) == TRUE
+  gUefiRiscVPlatformPkgTokenSpaceGuid.PcdForceNoAcpi|FALSE
+  gEfiMdeModulePkgTokenSpaceGuid.PcdAcpiTableStorageFile|{ 0xC8, 0xD8, 0xC0, 0xD1, 0xC6, 0x33, 0x22, 0x4A, 0x91, 0xB7, 0x42, 0x22, 0xE6, 0xA5, 0x0A, 0x77 }
+!endif
+
   #
   # F2 for UI APP
   #
@@ -239,6 +256,13 @@
 #
 ################################################################################
 [Components]
+!if $(ACPI_ENABLE) == TRUE
+  MdeModulePkg/Universal/Acpi/AcpiTableDxe/AcpiTableDxe.inf
+  MdeModulePkg/Universal/Acpi/AcpiPlatformDxe/AcpiPlatformDxe.inf
+  MdeModulePkg/Universal/Acpi/BootGraphicsResourceTableDxe/BootGraphicsResourceTableDxe.inf
+  Platform/SiFive/P5SeriesPkg/HiFivePremierP550/AcpiTables/AcpiTables.inf
+!endif
+
   MdeModulePkg/Universal/Disk/RamDiskDxe/RamDiskDxe.inf
   Platform/RISC-V/PlatformPkg/Drivers/FixedRamDiskDxe/FixedRamDiskDxe.inf
 
